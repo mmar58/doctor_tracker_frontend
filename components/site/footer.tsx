@@ -1,11 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { Logo } from "./logo";
 
 const footerLinks = [
     { href: "/#about", label: "About" },
     { href: "/#contact", label: "Contact" },
-    { href: "/login", label: "Sign In" },
-    { href: "/register", label: "Register" },
 ];
 
 export default function Footer() {
@@ -27,7 +27,7 @@ export default function Footer() {
                     </nav>
                 </div>
                 <div className="mt-8 pt-6 border-t border-border/60 text-center text-xs text-muted-foreground">
-                    &copy; {new Date().getFullYear()} Doctor Tracker. All rights reserved.
+                    &copy; 2026 Doctor Tracker. All rights reserved.
                 </div>
             </div>
         </footer>
