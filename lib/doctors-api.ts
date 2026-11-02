@@ -1,5 +1,5 @@
 import { request } from "./api-core";
-import { Doctor, PaginatedResponse } from "./types";
+import { Doctor, DoctorSpecialization, PaginatedResponse } from "./types";
 
 export interface CreateDoctorPayload {
     name: string;
@@ -11,8 +11,14 @@ export interface CreateDoctorPayload {
     isActive?: boolean;
 }
 
+export async function getSpecializationsApi(): Promise<DoctorSpecialization[]> {
+    return request<DoctorSpecialization[]>("/doctors/specializations");
+}
+
 export async function getDoctorsApi(params?: {
     search?: string;
+    specialization?: string;
+    minPatients?: number;
     page?: number;
     limit?: number;
 }): Promise<PaginatedResponse<Doctor>> {

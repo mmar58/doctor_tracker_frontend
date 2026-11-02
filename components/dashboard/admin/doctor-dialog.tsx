@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Doctor } from "@/lib/types";
-import { createDoctorApi, updateDoctorApi, CreateDoctorPayload } from "@/lib/doctors-api";
+import { Doctor, DoctorSpecialization } from "@/lib/types";
+import { createDoctorApi, updateDoctorApi, getSpecializationsApi, CreateDoctorPayload } from "@/lib/doctors-api";
 import { toast } from "sonner";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Check } from "lucide-react";
 
 interface DoctorDialogProps {
     open: boolean;
@@ -22,18 +22,33 @@ export function DoctorDialog({ open, onClose, onSuccess, doctor }: DoctorDialogP
         password: "",
         hospital: "",
         phone: "",
+        specialization: [],
         isActive: true,
     });
+    const [specializationsList, setSpecializationsList] = useState<DoctorSpecialization[]>([]);
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
+        if (open) {
+            getSpecializationsApi()
+                .then(setSpecializationsList)
+                .catch(() => { });
+        }
+    }, [open]);
+
+    useEffect(() => {
         if (doctor) {
+            const currentSpecIds = Array.isArray(doctor.specialization)
+                ? doctor.specialization.map((s) => (typeof s === "string" ? s : s._id))
+                : [];
+
             setForm({
                 name: doctor.name || "",
                 email: doctor.userId?.email || "",
                 password: "",
                 hospital: doctor.hospital || "",
                 phone: doctor.phone || "",
+                specialization: currentSpecIds,
                 isActive: doctor.userId?.isActive !== false,
             });
         } else {
@@ -43,12 +58,22 @@ export function DoctorDialog({ open, onClose, onSuccess, doctor }: DoctorDialogP
                 password: "",
                 hospital: "",
                 phone: "",
+                specialization: [],
                 isActive: true,
             });
         }
     }, [doctor, open]);
 
     if (!open) return null;
+
+    const toggleSpecialization = (id: string) => {
+        const current = form.specialization || [];
+        if (current.includes(id)) {
+            setForm({ ...form, specialization: current.filter((item) => item !== id) });
+        } else {
+            setForm({ ...form, specialization: [...current, id] });
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -61,6 +86,7 @@ export function DoctorDialog({ open, onClose, onSuccess, doctor }: DoctorDialogP
                     email: form.email,
                     hospital: form.hospital,
                     phone: form.phone,
+                    specialization: form.specialization,
                     isActive: form.isActive,
                 };
                 if (form.password) {
@@ -171,6 +197,40 @@ export function DoctorDialog({ open, onClose, onSuccess, doctor }: DoctorDialogP
                                 className="w-full px-3.5 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
                             />
                         </div>
+                    </div>
+
+                    {/* Specializations */}
+                    <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                            Specializations
+                        </label>
+                        {specializationsList.length === 0 ? (
+                            <p className="text-xs text-muted-foreground italic">No specializations found.</p>
+                        ) : (
+                            <div className="flex flex-wrap gap-2 p-2.5 rounded-lg border border-input bg-background/50 max-h-36 overflow-y-auto">
+                                {specializationsList.map((spec) => {
+                                    const selected = form.specialization?.includes(spec._id);
+                                    return (
+                                        <button
+                                            key={spec._id}
+                                            type="button"
+                                            onClick={() => toggleSpecialization(spec._id)}
+                                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer border ${
+                                                selected
+                                                    ? "bg-sky-500/15 text-sky-600 border-sky-400 dark:border-sky-500 dark:text-sky-400"
+                                                    : "bg-muted/50 text-muted-foreground border-transparent hover:border-border hover:text-foreground"
+                                            }`}
+                                        >
+                                            {selected && <Check className="size-3.5 stroke-[2.5]" />}
+                                            {spec.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        <span className="text-[11px] text-muted-foreground mt-1 block">
+                            Select one or more medical specialties that apply.
+                        </span>
                     </div>
 
                     {isEdit && (

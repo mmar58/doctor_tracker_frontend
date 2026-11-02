@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Doctor } from "@/lib/types";
-import { getDoctorsApi, deleteDoctorApi } from "@/lib/doctors-api";
+import { Doctor, DoctorSpecialization } from "@/lib/types";
+import { getDoctorsApi, getSpecializationsApi, deleteDoctorApi } from "@/lib/doctors-api";
 import { DoctorDialog } from "./doctor-dialog";
 import { toast } from "sonner";
 import {
@@ -16,12 +16,17 @@ import {
     Loader2,
     CheckCircle2,
     XCircle,
+    Stethoscope,
+    FilterX,
 } from "lucide-react";
 
 export function DoctorManager() {
     const [doctors, setDoctors] = useState<Doctor[]>([]);
+    const [specializations, setSpecializations] = useState<DoctorSpecialization[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
+    const [specialization, setSpecialization] = useState("");
+    const [minPatients, setMinPatients] = useState<string>("");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalDoctors, setTotalDoctors] = useState(0);
@@ -33,10 +38,23 @@ export function DoctorManager() {
     // Delete confirm
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
+    useEffect(() => {
+        getSpecializationsApi()
+            .then(setSpecializations)
+            .catch(() => {});
+    }, []);
+
     const loadDoctors = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await getDoctorsApi({ search: search.trim() || undefined, page, limit: 10 });
+            const minP = minPatients !== "" && !isNaN(Number(minPatients)) ? Number(minPatients) : undefined;
+            const res = await getDoctorsApi({
+                search: search.trim() || undefined,
+                specialization: specialization || undefined,
+                minPatients: minP,
+                page,
+                limit: 10,
+            });
             setDoctors(res.data);
             setTotalPages(res.pagination.totalPages);
             setTotalDoctors(res.pagination.total);
@@ -45,7 +63,7 @@ export function DoctorManager() {
         } finally {
             setLoading(false);
         }
-    }, [search, page]);
+    }, [search, specialization, minPatients, page]);
 
     useEffect(() => {
         loadDoctors();
@@ -55,6 +73,13 @@ export function DoctorManager() {
         e.preventDefault();
         setPage(1);
         loadDoctors();
+    };
+
+    const handleResetFilters = () => {
+        setSearch("");
+        setSpecialization("");
+        setMinPatients("");
+        setPage(1);
     };
 
     const handleDelete = async (id: string) => {
@@ -72,28 +97,19 @@ export function DoctorManager() {
         }
     };
 
+    const hasActiveFilters = Boolean(search.trim() || specialization || minPatients !== "");
+
     return (
         <div className="space-y-6">
             {/* Top Toolbar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-xl font-bold text-foreground">Doctors Management</h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                        Manage all registered medical professionals ({totalDoctors} total)
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <form onSubmit={handleSearchSubmit} className="relative">
-                        <input
-                            type="text"
-                            placeholder="Search name, hospital..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-56 sm:w-64 pl-9 pr-3 py-2 text-xs rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
-                        />
-                        <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                    </form>
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 className="text-xl font-bold text-foreground">Doctors Management</h2>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            Manage all registered medical professionals ({totalDoctors} total)
+                        </p>
+                    </div>
 
                     <button
                         type="button"
@@ -101,11 +117,75 @@ export function DoctorManager() {
                             setSelectedDoctor(null);
                             setDialogOpen(true);
                         }}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
                     >
                         <Plus className="size-4" />
                         <span>Add Doctor</span>
                     </button>
+                </div>
+
+                {/* Filters Bar */}
+                <div className="flex flex-wrap items-center gap-3 p-3.5 rounded-2xl bg-card border border-border">
+                    <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-[200px]">
+                        <input
+                            type="text"
+                            placeholder="Search name, hospital, phone..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        />
+                        <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                    </form>
+
+                    {/* Specialization Filter */}
+                    <div className="w-full sm:w-auto min-w-[170px]">
+                        <select
+                            value={specialization}
+                            onChange={(e) => {
+                                setSpecialization(e.target.value);
+                                setPage(1);
+                            }}
+                            className="w-full px-3 py-2 text-xs rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        >
+                            <option value="">All Specializations</option>
+                            {specializations.map((spec) => (
+                                <option key={spec._id} value={spec._id}>
+                                    {spec.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Min Patients Filter */}
+                    <div className="w-full sm:w-auto min-w-[150px]">
+                        <div className="relative">
+                            <input
+                                type="number"
+                                min={0}
+                                placeholder="Min patients..."
+                                value={minPatients}
+                                onChange={(e) => {
+                                    setMinPatients(e.target.value);
+                                    setPage(1);
+                                }}
+                                className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            />
+                            <Users className="size-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                        </div>
+                    </div>
+
+                    {/* Reset Button */}
+                    {hasActiveFilters && (
+                        <button
+                            type="button"
+                            onClick={handleResetFilters}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted border border-border transition-colors cursor-pointer"
+                            title="Reset filters"
+                        >
+                            <FilterX className="size-3.5" />
+                            <span>Reset</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -118,7 +198,7 @@ export function DoctorManager() {
                     </div>
                 ) : doctors.length === 0 ? (
                     <div className="py-16 text-center text-sm text-muted-foreground">
-                        No doctors found. Try adjusting your search or add a new doctor.
+                        No doctors found. Try adjusting your filters or add a new doctor.
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -126,6 +206,7 @@ export function DoctorManager() {
                             <thead className="bg-muted/50 border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
                                 <tr>
                                     <th className="px-6 py-3.5 font-semibold">Doctor Name</th>
+                                    <th className="px-6 py-3.5 font-semibold">Specialization</th>
                                     <th className="px-6 py-3.5 font-semibold">Hospital / Clinic</th>
                                     <th className="px-6 py-3.5 font-semibold">Contact</th>
                                     <th className="px-6 py-3.5 font-semibold">Assigned Patients</th>
@@ -136,6 +217,7 @@ export function DoctorManager() {
                             <tbody className="divide-y divide-border">
                                 {doctors.map((doc) => {
                                     const isActive = doc.userId?.isActive !== false;
+                                    const specs = Array.isArray(doc.specialization) ? doc.specialization : [];
 
                                     return (
                                         <tr key={doc._id} className="hover:bg-muted/30 transition-colors">
@@ -151,6 +233,29 @@ export function DoctorManager() {
                                                         </p>
                                                     </div>
                                                 </div>
+                                            </td>
+
+                                            <td className="px-6 py-4">
+                                                {specs.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                                        {specs.map((s, idx) => {
+                                                            const name = typeof s === "string" ? s : s.name;
+                                                            const key = typeof s === "string" ? `${s}-${idx}` : s._id;
+                                                            return (
+                                                                <span
+                                                                    key={key}
+                                                                    className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60"
+                                                                >
+                                                                    {name}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground italic flex items-center gap-1">
+                                                        <Stethoscope className="size-3 text-muted-foreground/60" /> General
+                                                    </span>
+                                                )}
                                             </td>
 
                                             <td className="px-6 py-4">
