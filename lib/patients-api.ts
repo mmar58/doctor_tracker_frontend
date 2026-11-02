@@ -49,3 +49,12 @@ export async function deletePatientApi(id: string): Promise<{ success: boolean; 
     });
 }
 
+export async function unassignDoctorFromPatientApi(
+    patientId: string,
+    doctorId: string
+): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>(`/patients/${patientId}/doctors/${doctorId}`, {
+        method: "DELETE",
+    });
+}
+

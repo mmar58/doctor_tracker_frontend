@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Doctor, DoctorSpecialization } from "@/lib/types";
 import { getDoctorsApi, getSpecializationsApi, deleteDoctorApi } from "@/lib/doctors-api";
 import { DoctorDialog } from "./doctor-dialog";
+import { DoctorPatientsDialog } from "./doctor-patients-dialog";
 import { toast } from "sonner";
 import {
     Plus,
@@ -34,6 +35,10 @@ export function DoctorManager() {
     // Modal state
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+
+    // Doctor patients list modal
+    const [patientsDialogOpen, setPatientsDialogOpen] = useState(false);
+    const [viewingPatientsDoctor, setViewingPatientsDoctor] = useState<Doctor | null>(null);
 
     // Delete confirm
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -273,10 +278,18 @@ export function DoctorManager() {
                                             </td>
 
                                             <td className="px-6 py-4">
-                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 text-xs font-semibold">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setViewingPatientsDoctor(doc);
+                                                        setPatientsDialogOpen(true);
+                                                    }}
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 text-xs font-semibold transition-colors cursor-pointer border border-sky-200 dark:border-sky-800/60"
+                                                    title={`View ${doc.name}'s patients`}
+                                                >
                                                     <Users className="size-3.5" />
                                                     <span>{doc.patientCount ?? 0}</span>
-                                                </div>
+                                                </button>
                                             </td>
 
                                             <td className="px-6 py-4">
@@ -361,6 +374,17 @@ export function DoctorManager() {
                 doctor={selectedDoctor}
                 onClose={() => setDialogOpen(false)}
                 onSuccess={loadDoctors}
+            />
+
+            {/* Doctor's Patients Dialog */}
+            <DoctorPatientsDialog
+                open={patientsDialogOpen}
+                doctor={viewingPatientsDoctor}
+                onClose={() => {
+                    setPatientsDialogOpen(false);
+                    setViewingPatientsDoctor(null);
+                }}
+                onPatientRemoved={loadDoctors}
             />
         </div>
     );
